@@ -1,0 +1,129 @@
+Index: netcdfdataset.cpp
+===================================================================
+--- netcdfdataset.cpp	(revision 23015)
++++ netcdfdataset.cpp	(working copy)
+@@ -1012,7 +1012,7 @@
+                     FetchStandardParallels( szGridMappingValue );
+ 
+                 if( papszStdParallels != NULL ) {
+-		  
++
+                     if ( CSLCount( papszStdParallels ) == 1 ) {
+                         dfStdP1 = CPLAtofM( papszStdParallels[0] );
+                         dfStdP2 = dfStdP1;
+@@ -1188,7 +1188,7 @@
+                     FetchStandardParallels( szGridMappingValue );
+ 
+                 if( papszStdParallels != NULL ) {
+-		  
++
+                     if ( CSLCount( papszStdParallels ) == 1 ) {
+                         dfStdP1 = CPLAtofM( papszStdParallels[0] );
+                         dfStdP2 = dfStdP1;
+@@ -2433,10 +2433,7 @@
+         int i;
+         int NCDFVarID=0;
+ 
+-        double dfNN=0.0;
+-        double dfSN=0.0;
+-        double dfEE=0.0;
+-        double dfWE=0.0;
++        double dfNN=0.0, dfSN=0.0, dfEE=0.0, dfWE=0.0;
+         double adfGeoTransform[6];
+         char   szGeoTransform[ MAX_STR_LEN ];
+         char   szTemp[ MAX_STR_LEN ];
+@@ -2525,10 +2522,9 @@
+         int i;
+         int NCDFVarID;
+         const char  *pszProjection;
+-        double dfNN=0.0;
+-        double dfSN=0.0;
+-        double dfEE=0.0;
+-        double dfWE=0.0;
++        double dfNN=0.0, dfSN=0.0, dfEE=0.0, dfWE=0.0;
++        double dfStdP[2];
++        int bFoundStdP1=FALSE,bFoundStdP2=FALSE;
+         double adfGeoTransform[6];
+         char   szGeoTransform[ MAX_STR_LEN ];
+         char   szTemp[ MAX_STR_LEN ];
+@@ -2616,7 +2612,8 @@
+         for( int iChild = 0; iChild < poPROJCS->GetChildCount(); iChild++ )
+         {
+             const OGR_SRSNode    *poNode;
+-            float fValue;
++            double dfValue;
++            int bWriteAttribute = FALSE;
+ 
+             poNode = poPROJCS->GetChild( iChild );
+             if( !EQUAL(poNode->GetValue(),"PARAMETER") 
+@@ -2635,23 +2632,60 @@
+                     CPLDebug( "GDAL_netCDF", "%s = %s", 
+                               poNetcdfSRS[i].netCDFSRS, 
+                               pszParamVal );
++                    if( EQUAL( poNetcdfSRS[i].SRS, SRS_PP_STANDARD_PARALLEL_1 ) )  {
++                        bFoundStdP1 = TRUE;
++                        sscanf( pszParamVal, "%lg", &dfStdP[0] );
++                    }
++                    else if( EQUAL( poNetcdfSRS[i].SRS, SRS_PP_STANDARD_PARALLEL_2 ) )   {
++                        bFoundStdP2 = TRUE;
++                        sscanf( pszParamVal, "%lg", &dfStdP[1] );
++                    }
++                    else 
++                        bWriteAttribute = TRUE;
++                    
+                     break;
+                 }
+             }
++
+ /* -------------------------------------------------------------------- */
+ /*      Write Projection attribute                                      */
+ /* -------------------------------------------------------------------- */
+-            sscanf( pszParamVal, "%f", &fValue );
+-            if( poNetcdfSRS[i].netCDFSRS != NULL ) {
+-                nc_put_att_float( fpImage, 
+-                                  NCDFVarID, 
+-                                  poNetcdfSRS[i].netCDFSRS, 
+-                                  NC_FLOAT,
+-                                  1,
+-                                  &fValue );
+-
+-            }	
++            if ( bWriteAttribute == TRUE ) {
++                sscanf( pszParamVal, "%lg", &dfValue );
++                if( poNetcdfSRS[i].netCDFSRS != NULL ) {
++                    nc_put_att_double( fpImage, 
++                                       NCDFVarID, 
++                                       poNetcdfSRS[i].netCDFSRS, 
++                                       NC_DOUBLE,
++                                       1,
++                                       &dfValue );
++                }	
++            }
+         }
++        
++/* -------------------------------------------------------------------- */
++/*      Write Projection STD_PARALLEL attribute                         */
++/* -------------------------------------------------------------------- */
++        if ( bFoundStdP1 )  { 
++            /* one value or equal values */
++            if ( !bFoundStdP2 || dfStdP[0] ==  dfStdP[1] ) {
++                nc_put_att_double( fpImage, 
++                                   NCDFVarID, 
++                                   STD_PARALLEL, 
++                                   NC_DOUBLE,
++                                   1,
++                                   &dfStdP[0] );
++            }
++            else { /* two values */
++                nc_put_att_double( fpImage, 
++                                   NCDFVarID, 
++                                   STD_PARALLEL, 
++                                   NC_DOUBLE,
++                                   2,
++                                   dfStdP );
++            }
++        }
++        
+     }
+ 
+ /* -------------------------------------------------------------------- */

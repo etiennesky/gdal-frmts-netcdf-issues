@@ -1,0 +1,109 @@
+Index: netcdfdataset.h
+===================================================================
+--- netcdfdataset.h	(revision 23000)
++++ netcdfdataset.h	(working copy)
+@@ -92,7 +92,15 @@
+ 
+ #define GDALNBDIM  2
+ 
++/* netcdf file types, as in libcdi/cdo */
++#define NCDF_FILETYPE_NONE            0
++#define NCDF_FILETYPE_NC              1   /* File type netCDF                     */
++#define NCDF_FILETYPE_NC2             2   /* File type netCDF version 2 (64-bit)  */
++#define NCDF_FILETYPE_NC4             3   /* File type netCDF version 4           */
++#define NCDF_FILETYPE_NC4C            4   /* File type netCDF version 4 (classic) */
++#define NCDF_FILETYPE_UNKNOWN         10
+ 
++
+ typedef struct {
+     const char *netCDFSRS;
+     const char *SRS; }
+@@ -176,10 +184,12 @@
+     size_t        xdim, ydim;
+     int           nDimXid, nDimYid;
+     bool          bBottomUp;
++    int           nFiletype;
+ 
+-		netCDFDataset( );
+-		~netCDFDataset( );
++    netCDFDataset( );
++    ~netCDFDataset( );
+     
++    static int Identify( GDALOpenInfo * );
+     static GDALDataset *Open( GDALOpenInfo * );
+ 
+     CPLErr      SafeStrcat(char**, char*, size_t*);
+Index: netcdfdataset.cpp
+===================================================================
+--- netcdfdataset.cpp	(revision 23000)
++++ netcdfdataset.cpp	(working copy)
+@@ -1919,6 +1919,33 @@
+ }
+     
+ /************************************************************************/
++/*                              Identify()                              */
++/************************************************************************/
++
++int netCDFDataset::Identify( GDALOpenInfo * poOpenInfo )
++
++{
++/* -------------------------------------------------------------------- */
++/*      Does this appear to be a netcdf file?                           */
++/*      Note: proper care should be done at configure to detect which   */
++/*        netcdf versions are supported (nc, nc2, nc4), as does CDO     */
++/* -------------------------------------------------------------------- */
++    if ( poOpenInfo->nHeaderBytes < 4 )
++        return NCDF_FILETYPE_NONE;
++    if ( EQUALN((char*)poOpenInfo->pabyHeader,"CDF\001",4) )
++        return NCDF_FILETYPE_NC;
++    else if ( EQUALN((char*)poOpenInfo->pabyHeader,"CDF\002",4) )
++        return NCDF_FILETYPE_NC2;
++    else if ( EQUALN((char*)poOpenInfo->pabyHeader+1,"HDF",3) ) {
++        /* requires netcdf v4, should also test for netCDF-4 support compiled in */
++        if ( nc_inq_libvers()[0]=='4' )
++           return NCDF_FILETYPE_NC4;
++    }
++
++    return NCDF_FILETYPE_NONE;
++} 
++
++/************************************************************************/
+ /*                                Open()                                */
+ /************************************************************************/
+ 
+@@ -1939,14 +1966,16 @@
+     int          ndims, nvars, ngatts, unlimdimid;
+     int          nCount=0;
+     int          nVarID=-1;
++    int          nTmpFiletype=NCDF_FILETYPE_NONE;
+ 
+ /* -------------------------------------------------------------------- */
+ /*      Does this appear to be a netcdf file?                           */
+ /* -------------------------------------------------------------------- */
+-    if( !EQUALN(poOpenInfo->pszFilename,"NETCDF:",7)
+-        && ( poOpenInfo->nHeaderBytes < 5 
+-             || !EQUALN((const char *) (poOpenInfo->pabyHeader),"CDF\001",5)))
+-        return NULL;
++   if( ! EQUALN(poOpenInfo->pszFilename,"NETCDF:",7) ) {
++      nTmpFiletype = Identify( poOpenInfo );
++      if ( nTmpFiletype == NCDF_FILETYPE_NONE ) 
++       return NULL;
++    }
+ 
+ /* -------------------------------------------------------------------- */
+ /*       Check if filename start with NETCDF: tag                       */
+@@ -1990,11 +2019,14 @@
+                       "Failed to parse NETCDF: prefix string into expected three fields." );
+             return NULL;
+         }
++       /* should try to identify filetype */ 
++       poDS->nFiletype = NCDF_FILETYPE_UNKNOWN;
+     }
+     else 
+     {
+         poDS->osFilename = poOpenInfo->pszFilename;
+         poDS->bTreatAsSubdataset = FALSE;
++        poDS->nFiletype = nTmpFiletype;
+     }
+ 
+ /* -------------------------------------------------------------------- */

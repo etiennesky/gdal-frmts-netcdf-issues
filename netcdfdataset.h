@@ -102,6 +102,13 @@
 #define NCDF_FILETYPE_HDF5            5   
 #define NCDF_FILETYPE_UNKNOWN         10  /* Filetype not determined (yet) */
 
+/* new defs */
+#define NCDF_DIMNAME_X "x"
+#define NCDF_DIMNAME_Y "y"
+#define NCDF_DIMNAME_LON "lon"
+#define NCDF_DIMNAME_LAT "lat"
+
+#define NCDF_
 typedef struct {
     const char *netCDFSRS;
     const char *SRS; }

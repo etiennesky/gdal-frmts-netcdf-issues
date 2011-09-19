@@ -107,6 +107,8 @@
 #define NCDF_DIMNAME_Y "y"
 #define NCDF_DIMNAME_LON "lon"
 #define NCDF_DIMNAME_LAT "lat"
+#define NCDF_CONVENTIONS "CF-1.2"
+#define NCDF_GDAL GDALVersionInfo("--version")
 
 #define NCDF_
 typedef struct {
@@ -131,11 +133,14 @@ static const oNetcdfSRS poNetcdfSRS[] = {
     {"hotine_oblique_mercator_2P", 
      SRS_PT_HOTINE_OBLIQUE_MERCATOR_TWO_POINT_NATURAL_ORIGIN},
     {"laborde_oblique_mercator", SRS_PT_LABORDE_OBLIQUE_MERCATOR },
-    {"lambert_conformal_conic1", SRS_PT_LAMBERT_CONFORMAL_CONIC_1SP },
+    /* {"lambert_conformal_conic1", SRS_PT_LAMBERT_CONFORMAL_CONIC_1SP }, */
+    {"lambert_conformal_conic", SRS_PT_LAMBERT_CONFORMAL_CONIC_1SP },
     {"lambert_conformal_conic", SRS_PT_LAMBERT_CONFORMAL_CONIC_2SP },
     {"lambert_azimuthal_equal_area", SRS_PT_LAMBERT_AZIMUTHAL_EQUAL_AREA },
-    {"mercator_1sp", SRS_PT_MERCATOR_1SP },
-    {"mercator_2sp", SRS_PT_MERCATOR_2SP },
+    /* {"mercator_1sp", SRS_PT_MERCATOR_1SP }, */
+    /* {"mercator_2sp", SRS_PT_MERCATOR_2SP }, */
+    {"mercator", SRS_PT_MERCATOR_1SP },
+    {"mercator", SRS_PT_MERCATOR_2SP },
     {"miller_cylindrical", SRS_PT_MILLER_CYLINDRICAL },
     {"mollweide", SRS_PT_MOLLWEIDE },
     {"new_zealand_map_grid", SRS_PT_NEW_ZEALAND_MAP_GRID },

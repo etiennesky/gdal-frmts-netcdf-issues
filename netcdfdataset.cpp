@@ -3583,6 +3583,12 @@ NCDFCreateCopy2( const char * pszFilename, GDALDataset *poSrcDS,
                              GRD_MAPPING,
                              strlen( pszNetcdfProjection ),
                              pszNetcdfProjection );
+            if ( bWriteCFLonLat ) {
+                nc_put_att_text( fpImage, NCDFVarID, 
+                                 COORDINATES,
+                                 strlen( LONLAT ),
+                                 LONLAT );
+            }           
         }
 
     }

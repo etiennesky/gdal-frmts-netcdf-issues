@@ -74,7 +74,8 @@
 #define PROJ_Y_ORIGIN          "projection_y_coordinate_origin"
 #define EARTH_SHAPE            "GRIB_earth_shape"
 #define EARTH_SHAPE_CODE       "GRIB_earth_shape_code"
-#define SCALE_FACTOR           "scale_factor_at_central_meridian"
+#define SCALE_FACTOR           "scale_factor_at_central_meridian" //this has to go
+#define SCALE_FACTOR_MERIDIAN  "scale_factor_at_central_meridian"
 #define FALSE_EASTING          "false_easting"
 #define FALSE_NORTHING         "false_northing"
 #define EARTH_RADIUS           "earth_radius"

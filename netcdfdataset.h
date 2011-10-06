@@ -44,7 +44,11 @@
 /*			     netCDFDataset				*/
 /* ==================================================================== */
 /************************************************************************/
+
 #define MAX_STR_LEN            8192
+
+/* Useful defines of CF-1 convention standard variables related to mapping
+ * & projection - see http://cf-pcmdi.llnl.gov/ */
 #define AEA                    "albers_conical_equal_area"
 #define AE                     "azimuthal_equidistant"
 #define CEA                    "cylindrical_equal_area"
@@ -76,6 +80,7 @@
 #define EARTH_SHAPE_CODE       "GRIB_earth_shape_code"
 #define SCALE_FACTOR           "scale_factor_at_central_meridian" //this has to go
 #define SCALE_FACTOR_MERIDIAN  "scale_factor_at_central_meridian"
+#define VERT_LONG_FROM_POLE    "straight_vertical_longitude_from_pole"
 #define FALSE_EASTING          "false_easting"
 #define FALSE_NORTHING         "false_northing"
 #define EARTH_RADIUS           "earth_radius"
@@ -108,7 +113,7 @@
 #define NCDF_DIMNAME_Y "y"
 #define NCDF_DIMNAME_LON "lon"
 #define NCDF_DIMNAME_LAT "lat"
-#define NCDF_CONVENTIONS "CF-1.2"
+#define NCDF_CONVENTIONS "CF-1.5"
 #define NCDF_GDAL GDALVersionInfo("--version")
 
 #define NCDF_
@@ -145,28 +150,163 @@ static const oNetcdfSRS poNetcdfSRS[] = {
     {"miller_cylindrical", SRS_PT_MILLER_CYLINDRICAL },
     {"mollweide", SRS_PT_MOLLWEIDE },
     {"new_zealand_map_grid", SRS_PT_NEW_ZEALAND_MAP_GRID },
-    {"oblique_stereographic", SRS_PT_OBLIQUE_STEREOGRAPHIC }, 
+    //PDS: GDAL seems to currently treat oblique_stereographic same as stereographic
+    //{"oblique_stereographic", SRS_PT_OBLIQUE_STEREOGRAPHIC }, 
+    {STEREO, SRS_PT_OBLIQUE_STEREOGRAPHIC }, 
     {"orthographic", SRS_PT_ORTHOGRAPHIC },
-    {"polar_stereographic", SRS_PT_POLAR_STEREOGRAPHIC },
+    {POLAR_STEREO, SRS_PT_POLAR_STEREOGRAPHIC },
     {"polyconic", SRS_PT_POLYCONIC },
     {"robinson", SRS_PT_ROBINSON }, 
     {"sinusoidal", SRS_PT_SINUSOIDAL },  
-    {"stereographic", SRS_PT_STEREOGRAPHIC },
+    {STEREO, SRS_PT_STEREOGRAPHIC },
     {"swiss_oblique_cylindrical", SRS_PT_SWISS_OBLIQUE_CYLINDRICAL},
     {"transverse_mercator", SRS_PT_TRANSVERSE_MERCATOR },
     {"TM_south_oriented", SRS_PT_TRANSVERSE_MERCATOR_SOUTH_ORIENTED },
 
-    {LONG_CENTRAL_MERIDIAN, SRS_PP_CENTRAL_MERIDIAN },
     {SCALE_FACTOR, SRS_PP_SCALE_FACTOR },   
     {STD_PARALLEL_1, SRS_PP_STANDARD_PARALLEL_1 },
     {STD_PARALLEL_2, SRS_PP_STANDARD_PARALLEL_2 },
-    {"longitude_of_central_meridian", SRS_PP_LONGITUDE_OF_CENTER },
-    {"longitude_of_projection_origin", SRS_PP_LONGITUDE_OF_ORIGIN }, 
-    {"latitude_of_projection_origin", SRS_PP_LATITUDE_OF_ORIGIN }, 
+    {LONG_CENTRAL_MERIDIAN, SRS_PP_CENTRAL_MERIDIAN },
+    //Another test to get "Longitude origin" to override "Longitude_center"
+    {LON_PROJ_ORIGIN, SRS_PP_LONGITUDE_OF_CENTER }, 
+    //{LONG_CENTRAL_MERIDIAN, SRS_PP_LONGITUDE_OF_CENTER },
+    {LON_PROJ_ORIGIN, SRS_PP_LONGITUDE_OF_ORIGIN }, 
+    //PDS Test change: adding extra lat_of_proj_origin mapping to NetCDF
+    //2nd of these is what's needed for AEA and several others ...
+    {LAT_PROJ_ORIGIN, SRS_PP_LATITUDE_OF_ORIGIN }, 
+    {LAT_PROJ_ORIGIN, SRS_PP_LATITUDE_OF_CENTER }, 
     {FALSE_EASTING, SRS_PP_FALSE_EASTING },  
     {FALSE_NORTHING, SRS_PP_FALSE_NORTHING },       
     {NULL, NULL },
  };
+
+/* Following are a series of mappings from CF-1 convention parameters
+ * for each projection, to the equivalent in OGC WKT used internally by
+ * GDAL.
+ * See: http://cf-pcmdi.llnl.gov/documents/cf-conventions/1.5/apf.html
+ */
+
+//Albers equal area 
+static const oNetcdfSRS poAEAMappings[] = {
+    {STD_PARALLEL_1, SRS_PP_STANDARD_PARALLEL_1},
+    {STD_PARALLEL_2, SRS_PP_STANDARD_PARALLEL_2},
+    {LAT_PROJ_ORIGIN, SRS_PP_LATITUDE_OF_CENTER},
+    {LONG_CENTRAL_MERIDIAN, SRS_PP_LONGITUDE_OF_CENTER},
+    {FALSE_EASTING, SRS_PP_FALSE_EASTING },  
+    {FALSE_NORTHING, SRS_PP_FALSE_NORTHING },
+    {NULL, NULL}
+ };
+
+// Azimuthal equidistant
+static const oNetcdfSRS poAZEQMappings[] = {
+    {LAT_PROJ_ORIGIN, SRS_PP_LATITUDE_OF_CENTER},
+    {LON_PROJ_ORIGIN, SRS_PP_LONGITUDE_OF_CENTER},
+    {FALSE_EASTING, SRS_PP_FALSE_EASTING },  
+    {FALSE_NORTHING, SRS_PP_FALSE_NORTHING },
+    {NULL, NULL}
+ };
+
+// Lambert azimuthal equal area
+static const oNetcdfSRS poLAZEQMappings[] = {
+    {LAT_PROJ_ORIGIN, SRS_PP_LATITUDE_OF_CENTER},
+    {LON_PROJ_ORIGIN, SRS_PP_LONGITUDE_OF_CENTER},
+    {FALSE_EASTING, SRS_PP_FALSE_EASTING },  
+    {FALSE_NORTHING, SRS_PP_FALSE_NORTHING },
+    {NULL, NULL}
+ };
+
+// Lambert conformal conic - 1SP
+static const oNetcdfSRS poLC_1SPMappings[] = {
+    {STD_PARALLEL_1, SRS_PP_STANDARD_PARALLEL_1},
+    {LAT_PROJ_ORIGIN, SRS_PP_LATITUDE_OF_ORIGIN},
+    {LONG_CENTRAL_MERIDIAN, SRS_PP_CENTRAL_MERIDIAN},
+    {FALSE_EASTING, SRS_PP_FALSE_EASTING },  
+    {FALSE_NORTHING, SRS_PP_FALSE_NORTHING },
+    {NULL, NULL}
+ };
+
+// Lambert conformal conic - 2SP
+static const oNetcdfSRS poLC_2SPMappings[] = {
+    {STD_PARALLEL_1, SRS_PP_STANDARD_PARALLEL_1},
+    {STD_PARALLEL_2, SRS_PP_STANDARD_PARALLEL_2},
+    {LAT_PROJ_ORIGIN, SRS_PP_LATITUDE_OF_ORIGIN},
+    {LONG_CENTRAL_MERIDIAN, SRS_PP_CENTRAL_MERIDIAN},
+    {FALSE_EASTING, SRS_PP_FALSE_EASTING },  
+    {FALSE_NORTHING, SRS_PP_FALSE_NORTHING },
+    {NULL, NULL}
+ };
+
+// Lambert cylindrical equal area
+// Also a "scale_factor_at_projection' CF-1 alternative to std_parallel
+//  ... but not in OGC WKT. Perhaps need translation formula on import?
+static const oNetcdfSRS poLCEAMappings[] = {
+    {STD_PARALLEL_1, SRS_PP_STANDARD_PARALLEL_1},
+    {LONG_CENTRAL_MERIDIAN, SRS_PP_CENTRAL_MERIDIAN},
+    {FALSE_EASTING, SRS_PP_FALSE_EASTING },  
+    {FALSE_NORTHING, SRS_PP_FALSE_NORTHING },
+    {NULL, NULL}
+ };
+
+// Mercator 1 Standard Parallel
+static const oNetcdfSRS poM_1SPMappings[] = {
+    {LON_PROJ_ORIGIN, SRS_PP_CENTRAL_MERIDIAN},
+    {SCALE_FACTOR_ORIGIN, SRS_PP_SCALE_FACTOR},
+    {FALSE_EASTING, SRS_PP_FALSE_EASTING },  
+    {FALSE_NORTHING, SRS_PP_FALSE_NORTHING },
+    {NULL, NULL}
+ };
+
+// Mercator 2 Standard Parallel
+static const oNetcdfSRS poM_2SPMappings[] = {
+    {LON_PROJ_ORIGIN, SRS_PP_CENTRAL_MERIDIAN},
+    {STD_PARALLEL_1, SRS_PP_STANDARD_PARALLEL_1},
+    // ? Not entirely sure about the std_parallel_2, needs testing ...
+    {STD_PARALLEL_2, SRS_PP_LATITUDE_OF_ORIGIN},
+    {FALSE_EASTING, SRS_PP_FALSE_EASTING },  
+    {FALSE_NORTHING, SRS_PP_FALSE_NORTHING },
+    {NULL, NULL}
+ };
+
+// Orthographic
+static const oNetcdfSRS poM_OrthoMappings[] = {
+    {LAT_PROJ_ORIGIN, SRS_PP_LATITUDE_OF_ORIGIN},
+    {LON_PROJ_ORIGIN, SRS_PP_CENTRAL_MERIDIAN},
+    {FALSE_EASTING, SRS_PP_FALSE_EASTING },  
+    {FALSE_NORTHING, SRS_PP_FALSE_NORTHING },
+    {NULL, NULL}
+ }; 
+
+// Polar stereographic
+// TODO: not sure about the mappings for this one, see comment in 
+//   NCDFWriteProjAttribs()
+
+// Rotated Pole
+// TODO: No GDAL equivalent of rotated pole? Doesn't seem to have an EPSG
+//  code or WKT ... so unless some advanced proj4 features can be used 
+//  seems to rule out.
+
+// Stereographic
+// TODO: Issues of how GDAL handles STEREOGRAPHIC vs OBLIQUE_STEREOGRAPHIC
+// (GDAL seems to create Oblique_stereographic when you request stereographic
+//   using Proj4, not entirely sure they're different projections)
+//  Haven't been able to create a GDAL regular Stereographic to test yet.
+static const oNetcdfSRS poM_StMappings[] = {
+    {LAT_PROJ_ORIGIN, SRS_PP_LATITUDE_OF_ORIGIN},
+    {LON_PROJ_ORIGIN, SRS_PP_CENTRAL_MERIDIAN},
+    {SCALE_FACTOR_ORIGIN, SRS_PP_SCALE_FACTOR},  
+    {FALSE_EASTING, SRS_PP_FALSE_EASTING },  
+    {FALSE_NORTHING, SRS_PP_FALSE_NORTHING },
+    {NULL, NULL}
+  };
+
+// Transverse Mercator
+static const oNetcdfSRS poM_TMMappings[] = {
+    {LAT_PROJ_ORIGIN, SRS_PP_LATITUDE_OF_ORIGIN},
+    {LONG_CENTRAL_MERIDIAN, SRS_PP_CENTRAL_MERIDIAN},
+    {FALSE_EASTING, SRS_PP_FALSE_EASTING },  
+    {FALSE_NORTHING, SRS_PP_FALSE_NORTHING },
+    {NULL, NULL}
+  };
 
 class netCDFRasterBand;
 

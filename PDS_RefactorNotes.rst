@@ -14,7 +14,7 @@ Layout:
 Projection: major refactors 
 ---------------------------
 
- * Should I try to refactor the SetProjection to also use the mapped arrays?
+ * Should we try to refactor the SetProjection to also use the mapped arrays?
 
  * Should we look at the C LibCF for working with NetCDF files, or is that
    an unwanted extra dependency?
@@ -26,8 +26,9 @@ Projection issues-specific:
 
  * Is there a good way to better connect the CF-1 standard name of 
    projections, with its required grid attributes?
+   * ET suggests a mapping struct array for this too.
  * Note: in NCDFWriteProjAttribs(), this can be cleaned up considerably 
-   if/when we remove the 
+   if/when we remove the previous fallback behaviour.
  * Current export to NetCDF behaviour implied by poNetcdfSRS in Dataset.h
    is to export all projections, even if CF-1 doesn't explicitly support?
    * Pro: _if_ we also exported lat/lon, you could probably still view the
@@ -45,7 +46,7 @@ General TODOs
 -------------
 
  * Update test to:
-   * Access some point locations in gdal with both
+   * Access some point locations in gdal with both using gdallocationinfo
    * Use a CF-1 compliance checker optionally?
    * Import back in to TIFF again, check file still same projection, extents,
      and several locations are still valid.
@@ -56,16 +57,26 @@ General TODOs
    * (O) Mercator - 1SP (Sent to mailing list ... )
    * (O) Stereographic and Ortho_Stereographic (Reported as GDAL:#4267)
 
+ * Note: Frank W says in the trunk he's just updated to latest EPSG 
+   definitions, so could be worthwhile re-testing some of these.
+
  * CF-1 followups:
    (TODO: Waiting on access to CF-1 trac to be able to report these ... )
    
    * Polar stereographic - ask for guidance on what the coords mean.
    * Lambert Cylindrical equal area ... the 'scale_factor_at_projection' not
      covered by OGC WKT or Proj4?
- 
+   * 3/10: General support of Datums/coords/OGC WKT stuff:
+     * Got email reply that Phil Bentley is considering a proposal here
+       (apparently he was driver behind main CF-1 updates)
+
  * IDV/NetCDF Java/CF-1 followups:
    (O: Sent email to netcdf-java@unidata.ucar.edu to ask for input)
+   http://www.unidata.ucar.edu/mailing_lists/archives/netcdf-java/2011/msg00135.html
 
    * AZ equidistant not loading
    * LCEA not loading
    * Mercator 1SP ... loads in IDV, but then doesn't display properly (no valid projection)
+
+(Updated 3/10/2011)
+(Minor ups 6/10/2011)
